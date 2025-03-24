@@ -1,0 +1,14 @@
+C:\Users\carlo\source\repos\TestContainer\TestContainer\bin\Debug\net8.0\TestContainer.exe
+C:\Users\carlo\source\repos\TestContainer\TestContainer\bin\Debug\net8.0\TestContainer.deps.json
+C:\Users\carlo\source\repos\TestContainer\TestContainer\bin\Debug\net8.0\TestContainer.runtimeconfig.json
+C:\Users\carlo\source\repos\TestContainer\TestContainer\bin\Debug\net8.0\TestContainer.dll
+C:\Users\carlo\source\repos\TestContainer\TestContainer\bin\Debug\net8.0\TestContainer.pdb
+C:\Users\carlo\source\repos\TestContainer\TestContainer\obj\Debug\net8.0\TestContainer.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\carlo\source\repos\TestContainer\TestContainer\obj\Debug\net8.0\TestContainer.AssemblyInfoInputs.cache
+C:\Users\carlo\source\repos\TestContainer\TestContainer\obj\Debug\net8.0\TestContainer.AssemblyInfo.cs
+C:\Users\carlo\source\repos\TestContainer\TestContainer\obj\Debug\net8.0\TestContainer.csproj.CoreCompileInputs.cache
+C:\Users\carlo\source\repos\TestContainer\TestContainer\obj\Debug\net8.0\TestContainer.dll
+C:\Users\carlo\source\repos\TestContainer\TestContainer\obj\Debug\net8.0\refint\TestContainer.dll
+C:\Users\carlo\source\repos\TestContainer\TestContainer\obj\Debug\net8.0\TestContainer.pdb
+C:\Users\carlo\source\repos\TestContainer\TestContainer\obj\Debug\net8.0\TestContainer.genruntimeconfig.cache
+C:\Users\carlo\source\repos\TestContainer\TestContainer\obj\Debug\net8.0\ref\TestContainer.dll
