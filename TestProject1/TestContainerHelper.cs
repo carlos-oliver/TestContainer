@@ -1,7 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Testcontainers.MsSql;
+using TestProject.Data;
 using TestProject.Repositories;
-using TestProject1;
 
 namespace TestProject.Tests
 {

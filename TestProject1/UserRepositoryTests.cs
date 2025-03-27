@@ -1,7 +1,5 @@
 ﻿using FluentAssertions;
-using TestProject.Repositories;
-using TestProject1;
-using Xunit;
+using TestProject.Data;
 
 namespace TestProject.Tests
 {

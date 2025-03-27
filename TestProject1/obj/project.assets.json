@@ -5937,9 +5937,9 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "C:\\Users\\carlo\\source\\repos\\TestContainer\\TestProject1\\TestProject.csproj",
-      "projectName": "TestProject",
-      "projectPath": "C:\\Users\\carlo\\source\\repos\\TestContainer\\TestProject1\\TestProject.csproj",
+      "projectUniqueName": "C:\\Users\\carlo\\source\\repos\\TestContainer\\TestProject1\\IntegrationTests.csproj",
+      "projectName": "IntegrationTests",
+      "projectPath": "C:\\Users\\carlo\\source\\repos\\TestContainer\\TestProject1\\IntegrationTests.csproj",
       "packagesPath": "C:\\Users\\carlo\\.nuget\\packages\\",
       "outputPath": "C:\\Users\\carlo\\source\\repos\\TestContainer\\TestProject1\\obj\\",
       "projectStyle": "PackageReference",
