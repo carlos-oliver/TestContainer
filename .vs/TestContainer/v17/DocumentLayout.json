@@ -3,6 +3,14 @@
   "WorkspaceRootPath": "C:\\Users\\carlo\\source\\repos\\TestContainer\\",
   "Documents": [
     {
+      "AbsoluteMoniker": "D:0:0:{0B5E7602-68F0-482E-AF41-E53F54F5AED4}|TestProject1\\IntegrationTests.csproj|c:\\users\\carlo\\source\\repos\\testcontainer\\testproject1\\apiintegrationtests.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{0B5E7602-68F0-482E-AF41-E53F54F5AED4}|TestProject1\\IntegrationTests.csproj|solutionrelative:testproject1\\apiintegrationtests.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{0B5E7602-68F0-482E-AF41-E53F54F5AED4}|TestProject1\\IntegrationTests.csproj|c:\\users\\carlo\\source\\repos\\testcontainer\\testproject1\\integrationtests.csproj||{FA3CD31E-987B-443A-9B81-186104E8DAC1}|",
+      "RelativeMoniker": "D:0:0:{0B5E7602-68F0-482E-AF41-E53F54F5AED4}|TestProject1\\IntegrationTests.csproj|solutionrelative:testproject1\\integrationtests.csproj||{FA3CD31E-987B-443A-9B81-186104E8DAC1}|"
+    },
+    {
       "AbsoluteMoniker": "D:0:0:{0B5E7602-68F0-482E-AF41-E53F54F5AED4}|TestProject1\\IntegrationTests.csproj|c:\\users\\carlo\\source\\repos\\testcontainer\\testproject1\\migrations\\initialmigration.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
       "RelativeMoniker": "D:0:0:{0B5E7602-68F0-482E-AF41-E53F54F5AED4}|TestProject1\\IntegrationTests.csproj|solutionrelative:testproject1\\migrations\\initialmigration.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
@@ -42,7 +50,7 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 4,
+          "SelectedChildIndex": 2,
           "Children": [
             {
               "$type": "Bookmark",
@@ -50,20 +58,44 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 2,
+              "DocumentIndex": 1,
+              "Title": "IntegrationTests.csproj",
+              "DocumentMoniker": "C:\\Users\\carlo\\source\\repos\\TestContainer\\TestProject1\\IntegrationTests.csproj",
+              "RelativeDocumentMoniker": "TestProject1\\IntegrationTests.csproj",
+              "ToolTip": "C:\\Users\\carlo\\source\\repos\\TestContainer\\TestProject1\\IntegrationTests.csproj",
+              "RelativeToolTip": "TestProject1\\IntegrationTests.csproj",
+              "ViewState": "AQIAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000758|",
+              "WhenOpened": "2025-03-28T10:58:28.944Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "ApiIntegrationTests.cs",
+              "DocumentMoniker": "C:\\Users\\carlo\\source\\repos\\TestContainer\\TestProject1\\ApiIntegrationTests.cs",
+              "RelativeDocumentMoniker": "TestProject1\\ApiIntegrationTests.cs",
+              "ToolTip": "C:\\Users\\carlo\\source\\repos\\TestContainer\\TestProject1\\ApiIntegrationTests.cs",
+              "RelativeToolTip": "TestProject1\\ApiIntegrationTests.cs",
+              "ViewState": "AQIAADMAAAAAAAAAAADwv0cAAAAAAAAA",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-03-28T10:57:16.634Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 4,
               "Title": "TestContainerHelper.cs",
               "DocumentMoniker": "C:\\Users\\carlo\\source\\repos\\TestContainer\\TestProject1\\TestContainerHelper.cs",
               "RelativeDocumentMoniker": "TestProject1\\TestContainerHelper.cs",
               "ToolTip": "C:\\Users\\carlo\\source\\repos\\TestContainer\\TestProject1\\TestContainerHelper.cs",
               "RelativeToolTip": "TestProject1\\TestContainerHelper.cs",
-              "ViewState": "AQIAAAYAAAAAAAAAAAAAABcAAAAAAAAA",
+              "ViewState": "AQIAAAMAAAAAAAAAAIBJwBcAAAAAAAAA",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-03-27T13:40:27.918Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-03-27T13:40:27.918Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 3,
+              "DocumentIndex": 5,
               "Title": "SqlContainerFixture.cs",
               "DocumentMoniker": "C:\\Users\\carlo\\source\\repos\\TestContainer\\TestProject1\\SqlContainerFixture.cs",
               "RelativeDocumentMoniker": "TestProject1\\SqlContainerFixture.cs",
@@ -71,12 +103,11 @@
               "RelativeToolTip": "TestProject1\\SqlContainerFixture.cs",
               "ViewState": "AQIAAA8AAAAAAAAAAAAuwB8AAAAAAAAA",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-03-27T13:37:30.578Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-03-27T13:37:30.578Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 1,
+              "DocumentIndex": 3,
               "Title": "UserRepositoryTests.cs",
               "DocumentMoniker": "C:\\Users\\carlo\\source\\repos\\TestContainer\\TestProject1\\UserRepositoryTests.cs",
               "RelativeDocumentMoniker": "TestProject1\\UserRepositoryTests.cs",
@@ -84,12 +115,11 @@
               "RelativeToolTip": "TestProject1\\UserRepositoryTests.cs",
               "ViewState": "AQIAAAoAAAAAAAAAAAAQwC8AAAAAAAAA",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-03-27T12:58:03.938Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-03-27T12:58:03.938Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 0,
+              "DocumentIndex": 2,
               "Title": "InitialMigration.cs",
               "DocumentMoniker": "C:\\Users\\carlo\\source\\repos\\TestContainer\\TestProject1\\Migrations\\InitialMigration.cs",
               "RelativeDocumentMoniker": "TestProject1\\Migrations\\InitialMigration.cs",
@@ -97,12 +127,11 @@
               "RelativeToolTip": "TestProject1\\Migrations\\InitialMigration.cs",
               "ViewState": "AQIAAAMAAAAAAAAAAAAAACQAAAAAAAAA",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-03-27T13:05:09.94Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-03-27T13:05:09.94Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 5,
+              "DocumentIndex": 7,
               "Title": "MsSqlTestContainer.cs",
               "DocumentMoniker": "C:\\Users\\carlo\\source\\repos\\TestContainer\\TestProject1\\MsSqlTestContainer.cs",
               "RelativeDocumentMoniker": "TestProject1\\MsSqlTestContainer.cs",
@@ -110,12 +139,11 @@
               "RelativeToolTip": "TestProject1\\MsSqlTestContainer.cs",
               "ViewState": "AQIAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-03-27T13:07:58.141Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-03-27T13:07:58.141Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 6,
+              "DocumentIndex": 8,
               "Title": "AppDbContext.cs",
               "DocumentMoniker": "C:\\Users\\carlo\\source\\repos\\TestContainer\\TestProject1\\AppDbContext.cs",
               "RelativeDocumentMoniker": "TestProject1\\AppDbContext.cs",
@@ -123,33 +151,30 @@
               "RelativeToolTip": "TestProject1\\AppDbContext.cs",
               "ViewState": "AQIAABMAAAAAAAAAAAAIwBwAAAAFAAAA",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-03-27T13:05:43.803Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-03-27T13:05:43.803Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 4,
+              "DocumentIndex": 6,
               "Title": "UserRepository.cs",
               "DocumentMoniker": "C:\\Users\\carlo\\source\\repos\\TestContainer\\TestProject1\\UserRepository.cs",
               "RelativeDocumentMoniker": "TestProject1\\UserRepository.cs",
               "ToolTip": "C:\\Users\\carlo\\source\\repos\\TestContainer\\TestProject1\\UserRepository.cs",
               "RelativeToolTip": "TestProject1\\UserRepository.cs",
-              "ViewState": "AQIAAAoAAAAAAAAAAAAzwAAAAAAAAAAA",
+              "ViewState": "AQIAAAsAAAAAAAAAAAAAwAAAAAAAAAAA",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-03-27T12:47:07.146Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-03-27T12:47:07.146Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 7,
+              "DocumentIndex": 9,
               "Title": "IntegrationTests",
               "DocumentMoniker": "C:\\Users\\carlo\\source\\repos\\TestContainer\\TestProject1\\IntegrationTests.csproj",
               "RelativeDocumentMoniker": "TestProject1\\IntegrationTests.csproj",
               "ToolTip": "C:\\Users\\carlo\\source\\repos\\TestContainer\\TestProject1\\IntegrationTests.csproj",
               "RelativeToolTip": "TestProject1\\IntegrationTests.csproj",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000758|",
-              "WhenOpened": "2025-03-27T12:53:23.247Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-03-27T12:53:23.247Z"
             }
           ]
         }
