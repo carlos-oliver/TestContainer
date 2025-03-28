@@ -1,8 +1,9 @@
 using System;
 using System.Data.SqlClient;
 using System.Threading.Tasks;
+using System.Linq;
+using System.Collections.Generic;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Testcontainers.MsSql;
@@ -12,8 +13,8 @@ using Microsoft.EntityFrameworkCore;
 public class ApiIntegrationTests : IAsyncLifetime
 {
     private readonly MsSqlContainer _sqlContainer;
-    private readonly HttpClient _client;
     private readonly WebApplicationFactory<Program> _factory;
+    private readonly HttpClient _client;
 
     public ApiIntegrationTests()
     {
@@ -21,41 +22,40 @@ public class ApiIntegrationTests : IAsyncLifetime
             .WithImage("mcr.microsoft.com/mssql/server:2019-latest")
             .WithPassword("YourStrong(!)Password")
             .Build();
+    }
 
+    public async Task InitializeAsync()
+    {
+        await _sqlContainer.StartAsync();
+        
         _factory = new WebApplicationFactory<Program>()
             .WithWebHostBuilder(builder =>
             {
                 builder.ConfigureAppConfiguration((context, config) =>
                 {
-                    var builtConfig = config.Build();
-                    config.AddInMemoryCollection(new[]
+                    var connectionString = _sqlContainer.GetConnectionString();
+                    var memoryConfig = new Dictionary<string, string?>
                     {
-                        new KeyValuePair<string, string>(
-                            "ConnectionStrings:DefaultConnection",
-                            _sqlContainer.GetConnectionString()
-                        )
-                    });
+                        { "ConnectionStrings:DefaultConnection", connectionString }
+                    };
+                    config.AddInMemoryCollection(memoryConfig);
                 });
 
                 builder.ConfigureServices(services =>
                 {
-                    // Remover a configuração do banco existente
+                    // Remover contexto existente
                     var descriptor = services.SingleOrDefault(d => d.ServiceType == typeof(DbContextOptions<AppDbContext>));
                     if (descriptor != null)
                         services.Remove(descriptor);
 
-                    // Adicionar novo contexto com a ConnectionString do container
+                    // Registrar novo contexto apontando para o banco do container
                     services.AddDbContext<AppDbContext>(options =>
                         options.UseSqlServer(_sqlContainer.GetConnectionString()));
                 });
             });
 
         _client = _factory.CreateClient();
-    }
 
-    public async Task InitializeAsync()
-    {
-        await _sqlContainer.StartAsync();
         await InitializeDatabase();
     }
 
@@ -77,7 +77,7 @@ public class ApiIntegrationTests : IAsyncLifetime
 
     public async Task DisposeAsync()
     {
-        await _sqlContainer.DisposeAsync();
+        await _sqlContainer.StopAsync();
     }
 
     [Fact]
