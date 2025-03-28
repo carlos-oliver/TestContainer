@@ -1,22 +1,11 @@
-using System;
-using System.Collections.Generic;
-using System.Data.SqlClient;
-using System.Linq;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Mvc.Testing;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
 using Testcontainers.MsSql;
-using Xunit;
 
-public class ApiIntegrationTests : IAsyncLifetime
+public class TestDatabaseContainer
 {
     private readonly MsSqlContainer _sqlContainer;
-    private HttpClient _client;
-    private WebApplicationFactory<Program> _factory;
-    private string _connectionString;
 
-    public ApiIntegrationTests()
+    public TestDatabaseContainer()
     {
         _sqlContainer = new MsSqlBuilder()
             .WithImage("mcr.microsoft.com/mssql/server:2019-latest")
@@ -24,34 +13,20 @@ public class ApiIntegrationTests : IAsyncLifetime
             .Build();
     }
 
-    public async Task InitializeAsync()
+    public async Task StartAsync() => await _sqlContainer.StartAsync();
+    public async Task StopAsync() => await _sqlContainer.DisposeAsync();
+    public string GetConnectionString() => _sqlContainer.GetConnectionString();
+}
+
+........................
+using System.Data.SqlClient;
+using System.Threading.Tasks;
+
+public static class TestDatabaseInitializer
+{
+    public static async Task InitializeDatabase(string connectionString)
     {
-        // Inicia o container SQL Server
-        await _sqlContainer.StartAsync();
-        _connectionString = _sqlContainer.GetConnectionString();
-
-        _factory = new WebApplicationFactory<Program>()
-            .WithWebHostBuilder(builder =>
-            {
-                builder.ConfigureAppConfiguration((context, config) =>
-                {
-                    // Sobrescreve a ConnectionString para usar o container
-                    var memoryConfig = new Dictionary<string, string?>
-                    {
-                        { "ConnectionStrings:DefaultConnection", _connectionString }
-                    };
-                    config.AddInMemoryCollection(memoryConfig);
-                });
-            });
-
-        _client = _factory.CreateClient();
-
-        await InitializeDatabase();
-    }
-
-    private async Task InitializeDatabase()
-    {
-        using var connection = new SqlConnection(_connectionString);
+        using var connection = new SqlConnection(connectionString);
         await connection.OpenAsync();
 
         var command = connection.CreateCommand();
@@ -64,16 +39,76 @@ public class ApiIntegrationTests : IAsyncLifetime
             INSERT INTO Usuarios (Nome) VALUES ('João'), ('Maria');";
         await command.ExecuteNonQueryAsync();
     }
+}
+
+..........................
+using System.Collections.Generic;
+using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.Configuration;
+
+public class CustomWebApplicationFactory<TStartup> : WebApplicationFactory<TStartup> where TStartup : class
+{
+    private readonly string _connectionString;
+
+    public CustomWebApplicationFactory(string connectionString)
+    {
+        _connectionString = connectionString;
+    }
+
+    protected override void ConfigureWebHost(IWebHostBuilder builder)
+    {
+        builder.ConfigureAppConfiguration((context, config) =>
+        {
+            var memoryConfig = new Dictionary<string, string?>
+            {
+                { "ConnectionStrings:DefaultConnection", _connectionString }
+            };
+            config.AddInMemoryCollection(memoryConfig);
+        });
+    }
+}
+......................
+using System.Net.Http;
+using System.Threading.Tasks;
+using Xunit;
+
+public abstract class BaseIntegrationTest : IAsyncLifetime
+{
+    protected readonly TestDatabaseContainer DatabaseContainer;
+    protected HttpClient Client;
+    private CustomWebApplicationFactory<Program> _factory;
+
+    protected BaseIntegrationTest()
+    {
+        DatabaseContainer = new TestDatabaseContainer();
+    }
+
+    public async Task InitializeAsync()
+    {
+        await DatabaseContainer.StartAsync();
+        string connectionString = DatabaseContainer.GetConnectionString();
+
+        _factory = new CustomWebApplicationFactory<Program>(connectionString);
+        Client = _factory.CreateClient();
+
+        await TestDatabaseInitializer.InitializeDatabase(connectionString);
+    }
 
     public async Task DisposeAsync()
     {
-        await _sqlContainer.DisposeAsync();
+        await DatabaseContainer.StopAsync();
     }
+}
+........................
+using System.Threading.Tasks;
+using Xunit;
 
+public class ApiIntegrationTests : BaseIntegrationTest
+{
     [Fact]
     public async Task Deve_Retornar_Usuarios_Do_Banco()
     {
-        var response = await _client.GetAsync("/api/usuarios");
+        var response = await Client.GetAsync("/api/usuarios");
         response.EnsureSuccessStatusCode();
         
         var content = await response.Content.ReadAsStringAsync();
