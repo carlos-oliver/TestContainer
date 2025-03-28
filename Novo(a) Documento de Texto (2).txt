@@ -1,0 +1,93 @@
+using System;
+using System.Data.SqlClient;
+using System.Threading.Tasks;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Configuration;
+using Microsoft.AspNetCore.Mvc.Testing;
+using Testcontainers.MsSql;
+using Xunit;
+using Microsoft.EntityFrameworkCore;
+
+public class ApiIntegrationTests : IAsyncLifetime
+{
+    private readonly MsSqlContainer _sqlContainer;
+    private readonly HttpClient _client;
+    private readonly WebApplicationFactory<Program> _factory;
+
+    public ApiIntegrationTests()
+    {
+        _sqlContainer = new MsSqlBuilder()
+            .WithImage("mcr.microsoft.com/mssql/server:2019-latest")
+            .WithPassword("YourStrong(!)Password")
+            .Build();
+
+        _factory = new WebApplicationFactory<Program>()
+            .WithWebHostBuilder(builder =>
+            {
+                builder.ConfigureAppConfiguration((context, config) =>
+                {
+                    var builtConfig = config.Build();
+                    config.AddInMemoryCollection(new[]
+                    {
+                        new KeyValuePair<string, string>(
+                            "ConnectionStrings:DefaultConnection",
+                            _sqlContainer.GetConnectionString()
+                        )
+                    });
+                });
+
+                builder.ConfigureServices(services =>
+                {
+                    // Remover a configuração do banco existente
+                    var descriptor = services.SingleOrDefault(d => d.ServiceType == typeof(DbContextOptions<AppDbContext>));
+                    if (descriptor != null)
+                        services.Remove(descriptor);
+
+                    // Adicionar novo contexto com a ConnectionString do container
+                    services.AddDbContext<AppDbContext>(options =>
+                        options.UseSqlServer(_sqlContainer.GetConnectionString()));
+                });
+            });
+
+        _client = _factory.CreateClient();
+    }
+
+    public async Task InitializeAsync()
+    {
+        await _sqlContainer.StartAsync();
+        await InitializeDatabase();
+    }
+
+    private async Task InitializeDatabase()
+    {
+        using var connection = new SqlConnection(_sqlContainer.GetConnectionString());
+        await connection.OpenAsync();
+
+        var command = connection.CreateCommand();
+        command.CommandText = @"
+            CREATE TABLE Usuarios (
+                Id INT PRIMARY KEY IDENTITY,
+                Nome NVARCHAR(100) NOT NULL
+            );
+
+            INSERT INTO Usuarios (Nome) VALUES ('João'), ('Maria');";
+        await command.ExecuteNonQueryAsync();
+    }
+
+    public async Task DisposeAsync()
+    {
+        await _sqlContainer.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task Deve_Retornar_Usuarios_Do_Banco()
+    {
+        var response = await _client.GetAsync("/api/usuarios");
+        response.EnsureSuccessStatusCode();
+        
+        var content = await response.Content.ReadAsStringAsync();
+        Assert.Contains("João", content);
+        Assert.Contains("Maria", content);
+    }
+}
