@@ -109,4 +109,63 @@ public class RabbitMqWorkerIntegrationTest : IAsyncLifetime
             {
                 var connection = factory.CreateConnection();
 
-                if (connection != null && connection
+                if (connection != null && connection.IsOpen)
+                {
+                    var channel = connection.CreateModel();
+                    if (channel != null && channel.IsOpen)
+                    {
+                        return channel;
+                    }
+                }
+            }
+            catch
+            {
+                // Ignorado para tentar novamente
+            }
+
+            await Task.Delay(delayMilliseconds);
+        }
+
+        throw new Exception("Não foi possível criar um canal RabbitMQ após várias tentativas.");
+    }
+
+    private async Task<bool> WaitForQueueToBeEmpty(IModel channel, string queueName, TimeSpan timeout)
+    {
+        var timeoutAt = DateTime.UtcNow + timeout;
+
+        while (DateTime.UtcNow < timeoutAt)
+        {
+            try
+            {
+                var result = channel.QueueDeclarePassive(queueName);
+                if (result.MessageCount == 0)
+                {
+                    return true;
+                }
+            }
+            catch
+            {
+                // Ignora se a fila não existir ainda
+            }
+
+            await Task.Delay(200);
+        }
+
+        return false;
+    }
+
+    public async Task DisposeAsync()
+    {
+        if (_workerHost != null)
+        {
+            await _workerHost.StopAsync();
+            _workerHost.Dispose();
+        }
+
+        if (_rabbitMqContainer != null)
+        {
+            await _rabbitMqContainer.StopAsync();
+            await _rabbitMqContainer.DisposeAsync();
+        }
+    }
+}
