@@ -1,9 +1,8 @@
 using System;
-using System.Collections.Generic;
-using System.IO;
 using System.Text;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using RabbitMQ.Client;
 using Testcontainers.RabbitMq;
@@ -35,19 +34,20 @@ public class RabbitMqWorkerIntegrationTest : IAsyncLifetime
         _rabbitMqHost = _rabbitMqContainer.Hostname;
         _rabbitMqPort = _rabbitMqContainer.GetMappedPublicPort(5672);
 
-        // Cria o appsettings.json dinâmico na raiz do projeto de teste
-        var appSettingsContent = $@"
-{{
-  ""RabbitMq"": {{
-    ""Host"": ""{_rabbitMqHost}"",
-    ""Port"": {_rabbitMqPort},
-    ""QueueName"": ""{QueueName}""
-  }}
-}}
-";
-        File.WriteAllText("appsettings.json", appSettingsContent);
-
         _workerHost = Program.CreateHostBuilder(Array.Empty<string>())
+            .ConfigureAppConfiguration((context, configBuilder) =>
+            {
+                var testConfig = new ConfigurationBuilder()
+                    .AddInMemoryCollection(new[]
+                    {
+                        new KeyValuePair<string, string>("RabbitMq:Host", _rabbitMqHost),
+                        new KeyValuePair<string, string>("RabbitMq:Port", _rabbitMqPort.ToString()),
+                        new KeyValuePair<string, string>("RabbitMq:QueueName", QueueName),
+                    })
+                    .Build();
+
+                configBuilder.AddConfiguration(testConfig);
+            })
             .Build();
 
         await _workerHost.StartAsync();
@@ -103,7 +103,7 @@ public class RabbitMqWorkerIntegrationTest : IAsyncLifetime
                     return true;
                 }
             }
-            catch (Exception)
+            catch
             {
                 // Ignora, a fila ainda pode não estar criada
             }
@@ -126,12 +126,6 @@ public class RabbitMqWorkerIntegrationTest : IAsyncLifetime
         {
             await _rabbitMqContainer.StopAsync();
             _rabbitMqContainer.Dispose();
-        }
-
-        // Remove o appsettings.json criado para o teste
-        if (File.Exists("appsettings.json"))
-        {
-            File.Delete("appsettings.json");
         }
     }
 }
