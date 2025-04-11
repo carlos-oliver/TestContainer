@@ -1,30 +1,29 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
 using System.Text;
-using System.Threading.Tasks;
+using System.Threading.Channels;
+using DotNet.Testcontainers.Builders;
+using DotNet.Testcontainers.Containers;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using RabbitMQ.Client;
-using Testcontainers.RabbitMq;
 using Xunit;
 
 public class RabbitMqWorkerIntegrationTest : IAsyncLifetime
 {
+    private IContainer _rabbitMqContainer;
     private IHost _workerHost;
-    private RabbitMqContainer _rabbitMqContainer;
 
     private string _rabbitMqHost;
-    private int _rabbitMqPort;
+    private ushort _rabbitMqPort;
     private const string QueueName = "test-queue";
 
     public RabbitMqWorkerIntegrationTest()
     {
-        _rabbitMqContainer = new RabbitMqBuilder()
-            .WithImage("rabbitmq:3.8-management")
-            .WithPortBinding(5672, true)
-            .WithPortBinding(15672, true)
-            .WithWaitStrategy(Wait.ForUnixContainer().UntilMessageIsLogged("Server startup complete"))
+        _rabbitMqContainer = new ContainerBuilder()
+            .WithImage("rabbitmq:3.13-management") // versão mais recente do RabbitMQ
+            .WithName("rabbitmq-integration-test")
+            .WithPortBinding(5672, assignRandomHostPort: true)
+            .WithPortBinding(15672, assignRandomHostPort: true)
+            .WithWaitStrategy(Wait.ForUnixContainer().UntilPortIsAvailable(5672))
             .Build();
     }
 
@@ -33,13 +32,9 @@ public class RabbitMqWorkerIntegrationTest : IAsyncLifetime
         await _rabbitMqContainer.StartAsync();
 
         _rabbitMqHost = _rabbitMqContainer.Hostname;
-        _rabbitMqPort = _rabbitMqContainer.GetMappedPublicPort(5672);
-
-        await WaitForRabbitMqToBeAvailable();
+        _rabbitMqPort = (ushort)_rabbitMqContainer.GetMappedPublicPort(5672);
 
         var config = new ConfigurationBuilder()
-            .SetBasePath(Directory.GetCurrentDirectory())
-            .AddJsonFile("appsettings.json", optional: true)
             .AddInMemoryCollection(new Dictionary<string, string>
             {
                 { "RabbitMq:Host", _rabbitMqHost },
@@ -53,6 +48,9 @@ public class RabbitMqWorkerIntegrationTest : IAsyncLifetime
             .Build();
 
         await _workerHost.StartAsync();
+
+        // Esperar RabbitMQ estar pronto
+        await WaitForRabbitMqToBeAvailable();
     }
 
     [Fact]
@@ -72,12 +70,10 @@ public class RabbitMqWorkerIntegrationTest : IAsyncLifetime
         var message = "Hello Worker!";
         var body = Encoding.UTF8.GetBytes(message);
 
-        channel.BasicPublish(
-            exchange: "",
-            routingKey: QueueName,
-            basicProperties: null,
-            body: body
-        );
+        channel.BasicPublish(exchange: "",
+                             routingKey: QueueName,
+                             basicProperties: null,
+                             body: body);
 
         var consumiu = await WaitForQueueToBeEmpty(channel, QueueName, TimeSpan.FromSeconds(10));
 
@@ -86,42 +82,11 @@ public class RabbitMqWorkerIntegrationTest : IAsyncLifetime
 
     private void DeclareTestQueue(IModel channel)
     {
-        channel.QueueDeclare(
-            queue: QueueName,
-            durable: false,
-            exclusive: false,
-            autoDelete: false,
-            arguments: null
-        );
-    }
-
-    private async Task WaitForRabbitMqToBeAvailable(int maxAttempts = 10, int delayMilliseconds = 500)
-    {
-        var factory = new ConnectionFactory
-        {
-            HostName = _rabbitMqHost,
-            Port = _rabbitMqPort
-        };
-
-        for (int attempt = 0; attempt < maxAttempts; attempt++)
-        {
-            try
-            {
-                using var connection = factory.CreateConnection();
-                if (connection.IsOpen)
-                {
-                    return;
-                }
-            }
-            catch
-            {
-                // Ignora, RabbitMQ ainda não está pronto
-            }
-
-            await Task.Delay(delayMilliseconds);
-        }
-
-        throw new Exception("RabbitMQ não ficou disponível dentro do tempo esperado.");
+        channel.QueueDeclare(queue: QueueName,
+                             durable: false,
+                             exclusive: false,
+                             autoDelete: false,
+                             arguments: null);
     }
 
     private async Task<bool> WaitForQueueToBeEmpty(IModel channel, string queueName, TimeSpan timeout)
@@ -140,13 +105,43 @@ public class RabbitMqWorkerIntegrationTest : IAsyncLifetime
             }
             catch
             {
-                // Ignora se a fila não existir ainda
+                // Fila ainda não criada
             }
 
             await Task.Delay(200);
         }
 
         return false;
+    }
+
+    private async Task WaitForRabbitMqToBeAvailable()
+    {
+        var factory = new ConnectionFactory
+        {
+            HostName = _rabbitMqHost,
+            Port = _rabbitMqPort
+        };
+
+        var timeout = DateTime.UtcNow.AddSeconds(10);
+        while (DateTime.UtcNow < timeout)
+        {
+            try
+            {
+                using var connection = factory.CreateConnection();
+                if (connection.IsOpen)
+                {
+                    return;
+                }
+            }
+            catch
+            {
+                // RabbitMQ não está pronto ainda
+            }
+
+            await Task.Delay(500);
+        }
+
+        throw new Exception("Timeout ao esperar o RabbitMQ ficar disponível.");
     }
 
     public async Task DisposeAsync()
