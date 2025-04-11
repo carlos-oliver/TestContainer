@@ -1,137 +1,27 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Text;
-using System.Threading.Tasks;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Hosting;
-using RabbitMQ.Client;
-using Testcontainers.Container.Abstractions.Hosting;
-using Testcontainers.Containers.Builders;
-using Testcontainers.Containers.Configurations;
-using Testcontainers.Containers.Modules;
-using Testcontainers.Containers.WaitStrategies;
-using Xunit;
+using Testcontainers.RabbitMq;
 
-public class RabbitMqWorkerIntegrationTest : IAsyncLifetime
+public class RabbitMqFixture : IAsyncLifetime
 {
-    private IHost _workerHost;
-    private TestcontainersContainer _rabbitMqContainer;
+    private RabbitMqContainer _rabbitMqContainer;
 
-    private string _rabbitMqHost;
-    private int _rabbitMqPort;
-    private const string QueueName = "test-queue";
-
-    public RabbitMqWorkerIntegrationTest()
-    {
-        var containerBuilder = new TestcontainersBuilder<TestcontainersContainer>()
-            .WithImage("rabbitmq:3.8-management")
-            .WithName("rabbitmq-integration-test")
-            .WithPortBinding(5672, true)
-            .WithPortBinding(15672, true)
-            .WithWaitStrategy(Wait.ForUnixContainer().UntilPortIsAvailable(5672));
-
-        _rabbitMqContainer = containerBuilder.Build();
-    }
+    public string ConnectionString => _rabbitMqContainer.GetConnectionString();
 
     public async Task InitializeAsync()
     {
+        _rabbitMqContainer = new RabbitMqBuilder()
+            .WithImage("rabbitmq:3.12-management")
+            .WithName("rabbitmq-integration-test")
+            .WithPortBinding(5672, true)
+            .WithPortBinding(15672, true)
+            .WithUsername("guest")
+            .WithPassword("guest")
+            .Build();
+
         await _rabbitMqContainer.StartAsync();
-
-        _rabbitMqHost = _rabbitMqContainer.Hostname;
-        _rabbitMqPort = _rabbitMqContainer.GetMappedPublicPort(5672);
-
-        var config = new ConfigurationBuilder()
-            .SetBasePath(Directory.GetCurrentDirectory())
-            .AddJsonFile("appsettings.json", optional: true)
-            .AddInMemoryCollection(new Dictionary<string, string>
-            {
-                { "RabbitMq:Host", _rabbitMqHost },
-                { "RabbitMq:Port", _rabbitMqPort.ToString() },
-                { "RabbitMq:QueueName", QueueName }
-            })
-            .Build();
-
-        _workerHost = Program.CreateHostBuilder(Array.Empty<string>())
-            .ConfigureAppConfiguration(builder => builder.AddConfiguration(config))
-            .Build();
-
-        await _workerHost.StartAsync();
-    }
-
-    [Fact]
-    public async Task Worker_Deve_Consumir_Mensagem_Do_RabbitMq()
-    {
-        var factory = new ConnectionFactory
-        {
-            HostName = _rabbitMqHost,
-            Port = _rabbitMqPort
-        };
-
-        using var connection = factory.CreateConnection();
-        using var channel = connection.CreateModel();
-
-        DeclareTestQueue(channel);
-
-        var message = "Hello Worker!";
-        var body = Encoding.UTF8.GetBytes(message);
-
-        channel.BasicPublish(exchange: "",
-                             routingKey: QueueName,
-                             basicProperties: null,
-                             body: body);
-
-        var consumiu = await WaitForQueueToBeEmpty(channel, QueueName, TimeSpan.FromSeconds(10));
-
-        Assert.True(consumiu, "A fila não foi consumida pelo Worker dentro do tempo esperado.");
-    }
-
-    private void DeclareTestQueue(IModel channel)
-    {
-        channel.QueueDeclare(queue: QueueName,
-                             durable: false,
-                             exclusive: false,
-                             autoDelete: false,
-                             arguments: null);
-    }
-
-    private async Task<bool> WaitForQueueToBeEmpty(IModel channel, string queueName, TimeSpan timeout)
-    {
-        var timeoutAt = DateTime.UtcNow + timeout;
-
-        while (DateTime.UtcNow < timeoutAt)
-        {
-            try
-            {
-                var result = channel.QueueDeclarePassive(queueName);
-                if (result.MessageCount == 0)
-                {
-                    return true;
-                }
-            }
-            catch (Exception)
-            {
-                // Ignora, a fila ainda pode não estar criada
-            }
-
-            await Task.Delay(200);
-        }
-
-        return false;
     }
 
     public async Task DisposeAsync()
     {
-        if (_workerHost != null)
-        {
-            await _workerHost.StopAsync();
-            _workerHost.Dispose();
-        }
-
-        if (_rabbitMqContainer != null)
-        {
-            await _rabbitMqContainer.StopAsync();
-            _rabbitMqContainer.Dispose();
-        }
+        await _rabbitMqContainer.StopAsync();
     }
 }
