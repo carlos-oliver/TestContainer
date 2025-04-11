@@ -1,40 +1,112 @@
-_rabbitMqContainer = new ContainerBuilder()
-    .WithImage("rabbitmq:3.12-management")
-    .WithPortBinding(5672, true)
-    .WithPortBinding(15672, true)
-    .WithEnvironment("RABBITMQ_DEFAULT_USER", "guest")
-    .WithEnvironment("RABBITMQ_DEFAULT_PASS", "guest")
-    .WithWaitStrategy(Wait.ForUnixContainer().UntilPortIsAvailable(5672))
-    .Build();
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Text;
+using System.Threading.Tasks;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Hosting;
+using RabbitMQ.Client;
+using Testcontainers.RabbitMq;
+using Xunit;
 
-
-
-
-
-
-private async Task WaitForRabbitMqToBeAvailable(string host, int port)
+public class RabbitMqWorkerIntegrationTest : IAsyncLifetime
 {
-    var factory = new ConnectionFactory
-    {
-        HostName = host,
-        Port = port
-    };
+    private IHost _workerHost;
+    private RabbitMqContainer _rabbitMqContainer;
 
-    var timeout = DateTime.UtcNow.AddSeconds(30);
+    private string _rabbitMqHost;
+    private int _rabbitMqPort;
+    private const string QueueName = "test-queue";
 
-    while (DateTime.UtcNow < timeout)
+    public RabbitMqWorkerIntegrationTest()
     {
+        _rabbitMqContainer = new RabbitMqBuilder()
+            .WithImage("rabbitmq:3.8-management")
+            .WithPortBinding(5672, true)
+            .WithPortBinding(15672, true)
+            .WithWaitStrategy(Wait.ForUnixContainer().UntilMessageIsLogged("Server startup complete"))
+            .Build();
+    }
+
+    public async Task InitializeAsync()
+    {
+        await _rabbitMqContainer.StartAsync();
+
+        _rabbitMqHost = _rabbitMqContainer.Hostname;
+        _rabbitMqPort = _rabbitMqContainer.GetMappedPublicPort(5672);
+
+        var config = new ConfigurationBuilder()
+            .SetBasePath(Directory.GetCurrentDirectory())
+            .AddJsonFile("appsettings.json", optional: true)
+            .AddInMemoryCollection(new Dictionary<string, string>
+            {
+                { "RabbitMq:Host", _rabbitMqHost },
+                { "RabbitMq:Port", _rabbitMqPort.ToString() },
+                { "RabbitMq:QueueName", QueueName }
+            })
+            .Build();
+
+        _workerHost = Program.CreateHostBuilder(Array.Empty<string>())
+            .ConfigureAppConfiguration(builder => builder.AddConfiguration(config))
+            .Build();
+
+        await _workerHost.StartAsync();
+    }
+
+    [Fact]
+    public async Task Worker_Deve_Consumir_Mensagem_Do_RabbitMq()
+    {
+        var factory = new ConnectionFactory
+        {
+            HostName = _rabbitMqHost,
+            Port = _rabbitMqPort
+        };
+
+        var channel = await CreateChannelWithRetry(factory);
+
         try
         {
-            using var connection = factory.CreateConnection();
-            using var channel = connection.CreateModel();
-            return; // Conseguiu conectar, RabbitMQ está disponível
+            DeclareTestQueue(channel);
+
+            var message = "Hello Worker!";
+            var body = Encoding.UTF8.GetBytes(message);
+
+            channel.BasicPublish(
+                exchange: "",
+                routingKey: QueueName,
+                basicProperties: null,
+                body: body
+            );
+
+            var consumiu = await WaitForQueueToBeEmpty(channel, QueueName, TimeSpan.FromSeconds(10));
+
+            Assert.True(consumiu, "A fila não foi consumida pelo Worker dentro do tempo esperado.");
         }
-        catch
+        finally
         {
-            await Task.Delay(500);
+            channel?.Close();
+            channel?.Dispose();
+            channel?.Connection?.Dispose();
         }
     }
 
-    throw new Exception("Timeout esperando o RabbitMQ estar disponível.");
-}
+    private void DeclareTestQueue(IModel channel)
+    {
+        channel.QueueDeclare(
+            queue: QueueName,
+            durable: false,
+            exclusive: false,
+            autoDelete: false,
+            arguments: null
+        );
+    }
+
+    private async Task<IModel> CreateChannelWithRetry(ConnectionFactory factory, int maxRetries = 10, int delayMilliseconds = 500)
+    {
+        for (int attempt = 0; attempt < maxRetries; attempt++)
+        {
+            try
+            {
+                var connection = factory.CreateConnection();
+
+                if (connection != null && connection
