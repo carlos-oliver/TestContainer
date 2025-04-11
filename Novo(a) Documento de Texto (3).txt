@@ -1,0 +1,93 @@
+using System;
+using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
+using DotNet.Testcontainers.Builders;
+using DotNet.Testcontainers.Containers;
+using RabbitMQ.Client;
+using Microsoft.Extensions.Hosting;
+using Xunit;
+
+public class RabbitMqWorkerIntegrationTest : IAsyncLifetime
+{
+    private readonly IContainer _rabbitMqContainer;
+    private IHost _workerHost;
+
+    public RabbitMqWorkerIntegrationTest()
+    {
+        _rabbitMqContainer = new TestcontainersBuilder<TestcontainersContainer>()
+            .WithImage("rabbitmq:3.8-management") // Compatível com .NET 3.1
+            .WithName("test-rabbitmq")
+            .WithPortBinding(5672, true)
+            .WithPortBinding(15672, true) // management
+            .WithWaitStrategy(Wait.ForUnixContainer().UntilPortIsAvailable(5672))
+            .Build();
+    }
+
+    public async Task InitializeAsync()
+    {
+        await _rabbitMqContainer.StartAsync();
+
+        var rabbitMqHost = _rabbitMqContainer.Hostname;
+        var rabbitMqPort = _rabbitMqContainer.GetMappedPublicPort(5672);
+
+        // Aqui você starta sua aplicação Worker apontando para o RabbitMQ do container
+        _workerHost = Host.CreateDefaultBuilder()
+            .ConfigureServices((hostContext, services) =>
+            {
+                services.AddHostedService<SeuWorkerService>();
+                services.Configure<WorkerOptions>(options =>
+                {
+                    options.RabbitMqHost = rabbitMqHost;
+                    options.RabbitMqPort = rabbitMqPort;
+                    options.QueueName = "test-queue";
+                });
+            })
+            .Build();
+
+        _ = _workerHost.StartAsync();
+    }
+
+    [Fact]
+    public async Task Worker_Deve_Consumir_Mensagem_Do_RabbitMq()
+    {
+        var factory = new ConnectionFactory()
+        {
+            HostName = _rabbitMqContainer.Hostname,
+            Port = _rabbitMqContainer.GetMappedPublicPort(5672)
+        };
+
+        using var connection = factory.CreateConnection();
+        using var channel = connection.CreateModel();
+
+        channel.QueueDeclare(queue: "test-queue",
+                             durable: false,
+                             exclusive: false,
+                             autoDelete: false,
+                             arguments: null);
+
+        var message = "Hello Worker!";
+        var body = Encoding.UTF8.GetBytes(message);
+
+        channel.BasicPublish(exchange: "",
+                             routingKey: "test-queue",
+                             basicProperties: null,
+                             body: body);
+
+        // Agora espera um tempo para o Worker processar a mensagem
+        await Task.Delay(3000);
+
+        // Aqui você deveria ter alguma forma de verificar se o Worker processou
+        // Exemplo: um arquivo, um banco em memória, ou uma flag.
+        Assert.True(WorkerProcessouAMensagem);
+    }
+
+    public async Task DisposeAsync()
+    {
+        await _workerHost.StopAsync();
+        await _rabbitMqContainer.StopAsync();
+    }
+
+    // Exemplo de flag que você pode usar para verificar se o worker processou.
+    private bool WorkerProcessouAMensagem => SeuWorkerService.ProcessouMensagem;
+}
