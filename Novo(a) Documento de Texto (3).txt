@@ -1,15 +1,3 @@
-using System;
-using System.Text;
-using System.Threading.Tasks;
-using DotNet.Testcontainers.Builders;
-using DotNet.Testcontainers.Containers;
-using RabbitMQ.Client;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Configuration;
-using Xunit;
-using System.Threading;
-using System.IO;
-
 public class RabbitMqWorkerIntegrationTest : IAsyncLifetime
 {
     private readonly IContainer _rabbitMqContainer;
@@ -35,9 +23,8 @@ public class RabbitMqWorkerIntegrationTest : IAsyncLifetime
         _rabbitMqHost = _rabbitMqContainer.Hostname;
         _rabbitMqPort = _rabbitMqContainer.GetMappedPublicPort(5672);
 
-        // Cria configuração manualmente, lendo do appsettings.json do projeto
         var config = new ConfigurationBuilder()
-            .SetBasePath(Directory.GetCurrentDirectory()) // ou path do seu projeto
+            .SetBasePath(Directory.GetCurrentDirectory())
             .AddJsonFile("appsettings.json", optional: false)
             .AddInMemoryCollection(new[]
             {
@@ -47,16 +34,10 @@ public class RabbitMqWorkerIntegrationTest : IAsyncLifetime
             })
             .Build();
 
-        _workerHost = Host.CreateDefaultBuilder()
+        _workerHost = Program.CreateHostBuilder(Array.Empty<string>()) // 👈 chama a mesma criação de host da aplicação
             .ConfigureAppConfiguration(builder =>
             {
-                builder.AddConfiguration(config);
-            })
-            .ConfigureServices((hostContext, services) =>
-            {
-                // Usa a mesma configuração que sua aplicação usa
-                services.AddHostedService<SeuWorkerService>();
-                // Outras dependências, se necessário
+                builder.AddConfiguration(config); // Sobrescreve configurações para usar o Rabbit do Testcontainers
             })
             .Build();
 
