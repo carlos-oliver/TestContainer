@@ -1,18 +1,40 @@
-_rabbitMqContainer = new RabbitMqBuilder()
+_rabbitMqContainer = new ContainerBuilder()
     .WithImage("rabbitmq:3.12-management")
     .WithPortBinding(5672, true)
     .WithPortBinding(15672, true)
-    .WithUsername("guest")
-    .WithPassword("guest")
-    .WithCreateContainerParametersModifier(parameters =>
-    {
-        parameters.Healthcheck = new HealthCheck
-        {
-            Test = new[] { "CMD-SHELL", "rabbitmq-diagnostics -q ping" },
-            Interval = TimeSpan.FromSeconds(2),
-            Timeout = TimeSpan.FromSeconds(2),
-            Retries = 5,
-            StartPeriod = TimeSpan.FromSeconds(5)
-        };
-    })
+    .WithEnvironment("RABBITMQ_DEFAULT_USER", "guest")
+    .WithEnvironment("RABBITMQ_DEFAULT_PASS", "guest")
+    .WithWaitStrategy(Wait.ForUnixContainer().UntilPortIsAvailable(5672))
     .Build();
+
+
+
+
+
+
+private async Task WaitForRabbitMqToBeAvailable(string host, int port)
+{
+    var factory = new ConnectionFactory
+    {
+        HostName = host,
+        Port = port
+    };
+
+    var timeout = DateTime.UtcNow.AddSeconds(30);
+
+    while (DateTime.UtcNow < timeout)
+    {
+        try
+        {
+            using var connection = factory.CreateConnection();
+            using var channel = connection.CreateModel();
+            return; // Conseguiu conectar, RabbitMQ está disponível
+        }
+        catch
+        {
+            await Task.Delay(500);
+        }
+    }
+
+    throw new Exception("Timeout esperando o RabbitMQ estar disponível.");
+}
