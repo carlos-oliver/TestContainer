@@ -35,6 +35,8 @@ public class RabbitMqWorkerIntegrationTest : IAsyncLifetime
         _rabbitMqHost = _rabbitMqContainer.Hostname;
         _rabbitMqPort = _rabbitMqContainer.GetMappedPublicPort(5672);
 
+        await WaitForRabbitMqToBeAvailable();
+
         var config = new ConfigurationBuilder()
             .SetBasePath(Directory.GetCurrentDirectory())
             .AddJsonFile("appsettings.json", optional: true)
@@ -62,32 +64,24 @@ public class RabbitMqWorkerIntegrationTest : IAsyncLifetime
             Port = _rabbitMqPort
         };
 
-        var channel = await CreateChannelWithRetry(factory);
+        using var connection = factory.CreateConnection();
+        using var channel = connection.CreateModel();
 
-        try
-        {
-            DeclareTestQueue(channel);
+        DeclareTestQueue(channel);
 
-            var message = "Hello Worker!";
-            var body = Encoding.UTF8.GetBytes(message);
+        var message = "Hello Worker!";
+        var body = Encoding.UTF8.GetBytes(message);
 
-            channel.BasicPublish(
-                exchange: "",
-                routingKey: QueueName,
-                basicProperties: null,
-                body: body
-            );
+        channel.BasicPublish(
+            exchange: "",
+            routingKey: QueueName,
+            basicProperties: null,
+            body: body
+        );
 
-            var consumiu = await WaitForQueueToBeEmpty(channel, QueueName, TimeSpan.FromSeconds(10));
+        var consumiu = await WaitForQueueToBeEmpty(channel, QueueName, TimeSpan.FromSeconds(10));
 
-            Assert.True(consumiu, "A fila não foi consumida pelo Worker dentro do tempo esperado.");
-        }
-        finally
-        {
-            channel?.Close();
-            channel?.Dispose();
-            channel?.Connection?.Dispose();
-        }
+        Assert.True(consumiu, "A fila não foi consumida pelo Worker dentro do tempo esperado.");
     }
 
     private void DeclareTestQueue(IModel channel)
@@ -101,32 +95,33 @@ public class RabbitMqWorkerIntegrationTest : IAsyncLifetime
         );
     }
 
-    private async Task<IModel> CreateChannelWithRetry(ConnectionFactory factory, int maxRetries = 10, int delayMilliseconds = 500)
+    private async Task WaitForRabbitMqToBeAvailable(int maxAttempts = 10, int delayMilliseconds = 500)
     {
-        for (int attempt = 0; attempt < maxRetries; attempt++)
+        var factory = new ConnectionFactory
+        {
+            HostName = _rabbitMqHost,
+            Port = _rabbitMqPort
+        };
+
+        for (int attempt = 0; attempt < maxAttempts; attempt++)
         {
             try
             {
-                var connection = factory.CreateConnection();
-
-                if (connection != null && connection.IsOpen)
+                using var connection = factory.CreateConnection();
+                if (connection.IsOpen)
                 {
-                    var channel = connection.CreateModel();
-                    if (channel != null && channel.IsOpen)
-                    {
-                        return channel;
-                    }
+                    return;
                 }
             }
             catch
             {
-                // Ignorado para tentar novamente
+                // Ignora, RabbitMQ ainda não está pronto
             }
 
             await Task.Delay(delayMilliseconds);
         }
 
-        throw new Exception("Não foi possível criar um canal RabbitMQ após várias tentativas.");
+        throw new Exception("RabbitMQ não ficou disponível dentro do tempo esperado.");
     }
 
     private async Task<bool> WaitForQueueToBeEmpty(IModel channel, string queueName, TimeSpan timeout)
