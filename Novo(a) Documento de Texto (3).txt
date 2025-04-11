@@ -5,8 +5,10 @@ using DotNet.Testcontainers.Builders;
 using DotNet.Testcontainers.Containers;
 using RabbitMQ.Client;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Configuration;
 using Xunit;
 using System.Threading;
+using System.IO;
 
 public class RabbitMqWorkerIntegrationTest : IAsyncLifetime
 {
@@ -21,7 +23,7 @@ public class RabbitMqWorkerIntegrationTest : IAsyncLifetime
         _rabbitMqContainer = new TestcontainersBuilder<TestcontainersContainer>()
             .WithImage("rabbitmq:3.8-management")
             .WithPortBinding(5672, true)
-            .WithPortBinding(15672, true) // porta do dashboard do RabbitMQ (opcional)
+            .WithPortBinding(15672, true)
             .WithWaitStrategy(Wait.ForUnixContainer().UntilPortIsAvailable(5672))
             .Build();
     }
@@ -33,13 +35,30 @@ public class RabbitMqWorkerIntegrationTest : IAsyncLifetime
         _rabbitMqHost = _rabbitMqContainer.Hostname;
         _rabbitMqPort = _rabbitMqContainer.GetMappedPublicPort(5672);
 
-        // Inicia seu Worker Hosted Service apontando para o RabbitMQ do container
-        _workerHost = Program.CreateHostBuilder(new string[]
-        {
-            $"--RabbitMqHost={_rabbitMqHost}",
-            $"--RabbitMqPort={_rabbitMqPort}",
-            $"--QueueName=test-queue"
-        }).Build();
+        // Cria configuração manualmente, lendo do appsettings.json do projeto
+        var config = new ConfigurationBuilder()
+            .SetBasePath(Directory.GetCurrentDirectory()) // ou path do seu projeto
+            .AddJsonFile("appsettings.json", optional: false)
+            .AddInMemoryCollection(new[]
+            {
+                new KeyValuePair<string, string>("RabbitMq:Host", _rabbitMqHost),
+                new KeyValuePair<string, string>("RabbitMq:Port", _rabbitMqPort.ToString()),
+                new KeyValuePair<string, string>("RabbitMq:QueueName", "test-queue"),
+            })
+            .Build();
+
+        _workerHost = Host.CreateDefaultBuilder()
+            .ConfigureAppConfiguration(builder =>
+            {
+                builder.AddConfiguration(config);
+            })
+            .ConfigureServices((hostContext, services) =>
+            {
+                // Usa a mesma configuração que sua aplicação usa
+                services.AddHostedService<SeuWorkerService>();
+                // Outras dependências, se necessário
+            })
+            .Build();
 
         await _workerHost.StartAsync();
     }
@@ -56,7 +75,6 @@ public class RabbitMqWorkerIntegrationTest : IAsyncLifetime
         using var connection = factory.CreateConnection();
         using var channel = connection.CreateModel();
 
-        // Declara a fila de teste
         channel.QueueDeclare(queue: "test-queue",
                              durable: false,
                              exclusive: false,
@@ -66,13 +84,11 @@ public class RabbitMqWorkerIntegrationTest : IAsyncLifetime
         var message = "Hello Worker!";
         var body = Encoding.UTF8.GetBytes(message);
 
-        // Publica mensagem
         channel.BasicPublish(exchange: "",
                              routingKey: "test-queue",
                              basicProperties: null,
                              body: body);
 
-        // Aguarda até que a fila esteja vazia ou atinja timeout
         bool consumiu = await WaitForQueueToBeEmpty(channel, "test-queue", TimeSpan.FromSeconds(5));
 
         Assert.True(consumiu, "A fila não foi consumida pelo Worker dentro do tempo esperado.");
@@ -90,7 +106,7 @@ public class RabbitMqWorkerIntegrationTest : IAsyncLifetime
                 return true;
             }
 
-            await Task.Delay(200); // pequena pausa antes de checar novamente
+            await Task.Delay(200);
         }
 
         return false;
