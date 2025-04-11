@@ -6,8 +6,11 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using RabbitMQ.Client;
-using Testcontainers.RabbitMq;
 using Xunit;
+using DotNet.Testcontainers.Builders;
+using DotNet.Testcontainers.Containers;
+using DotNet.Testcontainers.Configurations;
+using Testcontainers.RabbitMq;
 
 public class RabbitMqWorkerIntegrationTest : IAsyncLifetime
 {
@@ -21,11 +24,12 @@ public class RabbitMqWorkerIntegrationTest : IAsyncLifetime
     public RabbitMqWorkerIntegrationTest()
     {
         _rabbitMqContainer = new RabbitMqBuilder()
-            .WithImage("rabbitmq:3.12-management") // use a imagem mais recente que desejar
+            .WithImage("rabbitmq:3.12-management")
             .WithPortBinding(5672, true)
             .WithPortBinding(15672, true)
             .WithUsername("guest")
             .WithPassword("guest")
+            .WithWaitStrategy(DotNet.Testcontainers.Containers.WaitStrategies.Wait.ForUnixContainer().UntilMessageIsLogged("Server startup complete"))
             .Build();
     }
 
@@ -36,6 +40,9 @@ public class RabbitMqWorkerIntegrationTest : IAsyncLifetime
         _rabbitMqHost = _rabbitMqContainer.Hostname;
         _rabbitMqPort = _rabbitMqContainer.GetMappedPublicPort(5672);
 
+        // Espera garantida de que o RabbitMQ está aceitando conexões
+        await WaitForRabbitMqToBeAvailable(_rabbitMqHost, _rabbitMqPort, TimeSpan.FromSeconds(15));
+
         var config = new ConfigurationBuilder()
             .SetBasePath(Directory.GetCurrentDirectory())
             .AddJsonFile("appsettings.json", optional: true)
@@ -43,9 +50,7 @@ public class RabbitMqWorkerIntegrationTest : IAsyncLifetime
             {
                 { "RabbitMq:Host", _rabbitMqHost },
                 { "RabbitMq:Port", _rabbitMqPort.ToString() },
-                { "RabbitMq:QueueName", QueueName },
-                { "RabbitMq:UserName", "guest" },
-                { "RabbitMq:Password", "guest" }
+                { "RabbitMq:QueueName", QueueName }
             })
             .Build();
 
@@ -108,15 +113,48 @@ public class RabbitMqWorkerIntegrationTest : IAsyncLifetime
                     return true;
                 }
             }
-            catch (Exception)
+            catch
             {
-                // Ignora, a fila ainda pode não estar criada
+                // Fila pode não estar criada ainda
             }
 
             await Task.Delay(200);
         }
 
         return false;
+    }
+
+    private async Task WaitForRabbitMqToBeAvailable(string host, int port, TimeSpan timeout)
+    {
+        var timeoutAt = DateTime.UtcNow + timeout;
+
+        while (DateTime.UtcNow < timeoutAt)
+        {
+            try
+            {
+                var factory = new ConnectionFactory
+                {
+                    HostName = host,
+                    Port = port,
+                    UserName = "guest",
+                    Password = "guest"
+                };
+
+                using var connection = factory.CreateConnection();
+                if (connection.IsOpen)
+                {
+                    return;
+                }
+            }
+            catch
+            {
+                // Ignorar, tentar novamente
+            }
+
+            await Task.Delay(500);
+        }
+
+        throw new TimeoutException("RabbitMQ não ficou disponível a tempo.");
     }
 
     public async Task DisposeAsync()
@@ -129,6 +167,7 @@ public class RabbitMqWorkerIntegrationTest : IAsyncLifetime
 
         if (_rabbitMqContainer != null)
         {
+            await _rabbitMqContainer.StopAsync();
             await _rabbitMqContainer.DisposeAsync();
         }
     }
