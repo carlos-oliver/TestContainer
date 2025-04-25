@@ -129,3 +129,26 @@ public class RabbitMqWorkerIntegrationTest : IAsyncLifetime
         }
     }
 }
+
+
+
+private static void RemoverServicosKafka(IServiceCollection services)
+{
+    var kafkaKeywords = new[] { "Kafka", "Confluent", "Producer", "Consumer" };
+
+    var servicosKafka = services
+        .Where(s =>
+            kafkaKeywords.Any(k =>
+                s.ServiceType?.FullName?.Contains(k) == true ||
+                s.ImplementationType?.FullName?.Contains(k) == true ||
+                s.ImplementationInstance?.GetType().FullName?.Contains(k) == true ||
+                s.ImplementationFactory?.Method.ReturnType.FullName?.Contains(k) == true
+            ))
+        .ToList();
+
+    foreach (var svc in servicosKafka)
+    {
+        services.Remove(svc);
+        Console.WriteLine($"[Removido] {svc.ServiceType?.FullName}");
+    }
+}
